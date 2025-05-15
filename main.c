@@ -23,15 +23,15 @@ volatile unsigned long test_var = 0xDEADBEEF;
 
 /* Main entry point */
 void c_entry(void) {
-    uart_puts("Hello C-code!\n\n");
+    uart_puts("Hello C-code!\r\n");
 
     /* First read from our own data variable (should succeed) */
     uart_puts("Reading from our own data variable: ");
     print_hex(test_var);
-    uart_puts("\n");
+    uart_puts("\r\n");
 
     /* Try reading from the code section with a byte-by-byte approach */
-    uart_puts("\nReading first 16 bytes from 0x80200000 one byte at a time:\n");
+    uart_puts("\r\nReading first 16 bytes from 0x80200000 one byte at a time:\r\n");
 
     volatile unsigned char *code_ptr = (volatile unsigned char *)0x80200000;
     for (int i = 0; i < 16; i++) {
@@ -48,11 +48,11 @@ void c_entry(void) {
         uart_putchar(nibble < 10 ? '0' + nibble : 'A' + nibble - 10);
         nibble = byte & 0xF;
         uart_putchar(nibble < 10 ? '0' + nibble : 'A' + nibble - 10);
-        uart_puts("\n");
+        uart_puts("\r\n");
     }
 
-    uart_puts("\nIf you see this message, reading from 0x80200000 succeeded!\n");
-    uart_puts("Now attempting to read from protected OpenSBI memory...\n");
+    uart_puts("\r\nIf you see this message, reading from 0x80200000 succeeded!\r\n");
+    uart_puts("Now attempting to read from protected OpenSBI memory...\r\n");
 
     /* Small delay to ensure the above gets printed */
     for (volatile int i = 0; i < 1000000; i++) {}
@@ -62,7 +62,9 @@ void c_entry(void) {
     unsigned long value = *opensbi_ptr;  /* This should reboot the system */
 
     /* If we get here, protection failed */
-    uart_puts("Protection failed - system did not trap!\n");
+
+    uart_puts("Protection failed - system did not trap!\r\n");
+    uart_puts("Protection didn't actually fail - we are in M-Mode!\r\n");
 
     while(1) {}
 }
