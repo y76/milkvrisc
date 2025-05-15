@@ -468,7 +468,6 @@ void __attribute__((noreturn)) sbi_hart_hang(void)
 		wfi();
 	__builtin_unreachable();
 }
-
 void __attribute__((noreturn))
 sbi_hart_switch_mode(unsigned long arg0, unsigned long arg1,
 		     unsigned long next_addr, unsigned long next_mode,
@@ -479,6 +478,14 @@ sbi_hart_switch_mode(unsigned long arg0, unsigned long arg1,
 #else
 	unsigned long val;
 #endif
+
+    /* Print message indicating we're staying in M-mode */
+    sbi_printf("\n*** MODIFIED OPENSBI: Staying in M-mode instead of switching to S-mode ***\n");
+    sbi_printf("Original target mode was: %lu\n", next_mode);
+    sbi_printf("Will now jump to address 0x%lx in M-mode\n\n", next_addr);
+
+    /* Force M-mode instead of using next_mode */
+    next_mode = PRV_M;
 
 	switch (next_mode) {
 	case PRV_M:

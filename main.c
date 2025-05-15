@@ -25,21 +25,37 @@ volatile unsigned long test_var = 0xDEADBEEF;
 void c_entry(void) {
     uart_puts("Hello C-code!\n\n");
 
-    /* First read from our own data (this should succeed) */
+    /* First read from our own data variable (should succeed) */
     uart_puts("Reading from our own data variable: ");
     print_hex(test_var);
     uart_puts("\n");
 
-    /* Read from our stack (this should also succeed) */
-    unsigned long stack_var = 0xCAFEBABE;
-    uart_puts("Reading from our stack variable: ");
-    print_hex(stack_var);
-    uart_puts("\n\n");
+    /* Try reading from the code section with a byte-by-byte approach */
+    uart_puts("\nReading first 16 bytes from 0x80200000 one byte at a time:\n");
+
+    volatile unsigned char *code_ptr = (volatile unsigned char *)0x80200000;
+    for (int i = 0; i < 16; i++) {
+        uart_puts("Byte ");
+        uart_putchar('0' + i/10);
+        uart_putchar('0' + i%10);
+        uart_puts(": ");
+
+        /* Read one byte at a time */
+        unsigned char byte = code_ptr[i];
+
+        uart_puts("0x");
+        unsigned char nibble = (byte >> 4) & 0xF;
+        uart_putchar(nibble < 10 ? '0' + nibble : 'A' + nibble - 10);
+        nibble = byte & 0xF;
+        uart_putchar(nibble < 10 ? '0' + nibble : 'A' + nibble - 10);
+        uart_puts("\n");
+    }
+
+    uart_puts("\nIf you see this message, reading from 0x80200000 succeeded!\n");
+    uart_puts("Now attempting to read from protected OpenSBI memory...\n");
 
     /* Small delay to ensure the above gets printed */
     for (volatile int i = 0; i < 1000000; i++) {}
-
-    uart_puts("PMP Demo: Attempting to read from OpenSBI memory...\n");
 
     /* This access should trigger a trap due to PMP protection */
     volatile unsigned long *opensbi_ptr = (volatile unsigned long *)0x80000000;
@@ -47,9 +63,6 @@ void c_entry(void) {
 
     /* If we get here, protection failed */
     uart_puts("Protection failed - system did not trap!\n");
-    uart_puts("Value read: ");
-    print_hex(value);
-    uart_puts("\n");
 
     while(1) {}
 }
