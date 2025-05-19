@@ -83,3 +83,4 @@ cd ..
 picocom -b 115200 /dev/ttyACM0
 ```
 ![Screenshot_20250515_161838](https://github.com/user-attachments/assets/94cc7921-e377-447a-a9f1-290a20d29837)
+![Pasted image 20250513202806](https://github.com/user-attachments/assets/c56f8e16-0f94-4aa6-87b2-6a22dccd89ec)
