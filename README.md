@@ -85,3 +85,29 @@ picocom -b 115200 /dev/ttyACM0
 ```
 ![Screenshot_20250515_161838](https://github.com/user-attachments/assets/94cc7921-e377-447a-a9f1-290a20d29837)
 ![Pasted image 20250513202806](https://github.com/user-attachments/assets/c56f8e16-0f94-4aa6-87b2-6a22dccd89ec)
+
+
+Currently, there is an error when attempting to read pmpcfg1, pmpcfg3, and pmpcfg4.
+That being said, only pmpcfg0 and pmpcfg2 are readible (other have not tested yet)
+```
+sbi_trap_error: hart0: illegal instruction handler failed (error -2)
+sbi_trap_error: hart0: mcause=0x0000000000000002 mtval=0x000000003a1027f3
+sbi_trap_error: hart0: mepc=0x00000000802001f8 mstatus=0x8000000a01807800
+sbi_trap_error: hart0: ra=0x0000000080200456 sp=0x00000000803fff90
+sbi_trap_error: hart0: gp=0x0000000000000000 tp=0x0000000080020000
+sbi_trap_error: hart0: s0=0x00000000803fffc0 s1=0x0000000080080000
+sbi_trap_error: hart0: a0=0x0000000000000001 a1=0x0000000080080000
+sbi_trap_error: hart0: a2=0x0000000000000007 a3=0x0000000000000019
+sbi_trap_error: hart0: a4=0xfffffffffffffd2c a5=0x00000000802001f8
+sbi_trap_error: hart0: a6=0x0000000000000001 a7=0x0000000000000005
+sbi_trap_error: hart0: s2=0x0000000000000000 s3=0x8000000a01806000
+sbi_trap_error: hart0: s4=0x0000000080200020 s5=0x0000000000000000
+sbi_trap_error: hart0: s6=0x8000000a01806000 s7=0x000000008001b020
+sbi_trap_error: hart0: s8=0x000000000000007f s9=0x000000008001b698
+sbi_trap_error: hart0: s10=0x0000000000000000 s11=0x0000000000000000
+sbi_trap_error: hart0: t0=0x0000000004140000 t1=0x0000000000000020
+sbi_trap_error: hart0: t2=0x0000000000001000 t3=0x0000000000000010
+sbi_trap_error: hart0: t4=0x0000000000000008 t5=0x000000008001fec0
+sbi_trap_error: hart0: t6=0x0000000000000001
+
+```

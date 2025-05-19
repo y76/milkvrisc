@@ -1,3 +1,5 @@
+#include <stdint.h>
+
 /* Function declared in assembly */
 void uart_putchar(char c);
 
@@ -20,6 +22,60 @@ void print_hex(unsigned long value) {
 
 /* Global variable we should be able to access */
 volatile unsigned long test_var = 0xDEADBEEF;
+
+void uart_puthex64(uint64_t val) {
+    const char hex[] = "0123456789ABCDEF";
+    for (int i = 15; i >= 0; i--) {
+        uart_putchar(hex[(val >> (i * 4)) & 0xF]);
+    }
+}
+
+static inline void read_csr(uint32_t csr_id) {
+    uart_puts("pmpcfg");
+    uint64_t value;
+    switch (csr_id) {
+        case 0:
+            asm volatile("csrr %0, pmpcfg0" : "=r"(value));
+            uart_putchar('0');
+            break;
+        case 1:
+            asm volatile("csrr %0, pmpcfg1" : "=r"(value));
+            uart_putchar('1');
+            break;
+        case 2:
+            asm volatile("csrr %0, pmpcfg2" : "=r"(value));
+            uart_putchar('2');
+            break;
+        case 3:
+            asm volatile("csrr %0, pmpcfg3" : "=r"(value));
+            uart_putchar('3');
+            break;
+        case 4:
+            // asm volatile("csrr %0, pmpcfg4" : "=r"(value));
+            asm volatile("csrr %0, 0x3A4" : "=r"(value));
+            uart_putchar('4');
+            break;
+        case 5:
+            // asm volatile("csrr %0, pmpcfg5" : "=r"(value));
+            asm volatile("csrr %0, 0x3A5" : "=r"(value));
+            uart_putchar('5');
+            break;
+        case 6:
+            // asm volatile("csrr %0, pmpcfg6" : "=r"(value));
+            asm volatile("csrr %0, 0x3A6" : "=r"(value));
+            uart_putchar('6');
+            break;
+        case 7:
+            // asm volatile("csrr %0, pmpcfg7" : "=r"(value));
+            asm volatile("csrr %0, 0x3A7" : "=r"(value));
+            uart_putchar('7');
+            break;
+        // Add more if needed
+    }
+    uart_puts(": 0x");
+    uart_puthex64(value);
+    uart_puts("\r\n");
+}
 
 /* Main entry point */
 void c_entry(void) {
@@ -65,6 +121,15 @@ void c_entry(void) {
 
     uart_puts("Protection failed - system did not trap!\r\n");
     uart_puts("Protection didn't actually fail - we are in M-Mode!\r\n");
+
+    read_csr(0);
+    // read_csr(1);
+    read_csr(2);
+    // read_csr(3);
+    // read_csr(4);
+    // read_csr(5);
+    // read_csr(6);
+    // read_csr(7);
 
     while(1) {}
 }
