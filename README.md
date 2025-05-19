@@ -5,11 +5,14 @@ Prerequisites
 
 Milk-V Duo board
 SD card
-Serial console connection (baud rate: 128000)
+Serial console connection (baud rate: 115200)
 duo-buildroot-sdk cloned and set up
 
+```bash
+unzip the milkv-duo-sd-v1.1.4.img.zip and flash the image onto an SD card
+```
 ### Building and Running
-#### 1. Initial FSBL Setup (First Time Only)
+#### 1. Initial FSBL Setup
 If you haven't built the SDK before, run these commands to set up the environment and build the FSBL:
 ```bash
 export MILKV_BOARD=milkv-duo
@@ -33,7 +36,15 @@ make PLATFORM=generic CROSS_COMPILE=riscv64-unknown-elf- FW_PAYLOAD=y FW_PAYLOAD
 cd ..
 ```
 
-#### 3. Compile Your Test Program
+Make sure output looks something like this -> 
+
+```bash
+make[1]: Leaving directory '/home/pavel/apps/milkvrisc/fsbl'
+cp /home/pavel/apps/milkvrisc/fsbl/build/cv1800b_milkv_duo_sd/fip.bin /home/pavel/apps/milkvrisc/install/soc_cv1800b_milkv_duo_sd/
+cp /home/pavel/apps/milkvrisc/fsbl/build/cv1800b_milkv_duo_sd/fip.bin /home/pavel/apps/milkvrisc/install/soc_cv1800b_milkv_duo_sd/fip_spl.bin
+```
+
+#### 3. Compile Your Test Program (or use ./compile.sh)
 ```bash
 Compile the assembly file
 riscv64-unknown-elf-gcc -c -nostdlib -fno-builtin -march=rv64gc -mabi=lp64f -g -Wall start.S -o start.o
@@ -48,7 +59,7 @@ riscv64-unknown-elf-gcc -nostdlib -fno-builtin -march=rv64gc -mabi=lp64f -mcmode
 riscv64-unknown-elf-objcopy -O binary bl33.elf bl33.bin
 ```
 
-#### 4. Create the FIP Image
+#### 4. Create the FIP Image(or use ./sd.sh, but modify the script to your mount point)
 ```bash
 cd fsbl/
 ./plat/cv180x/fiptool.py -v genfip \
