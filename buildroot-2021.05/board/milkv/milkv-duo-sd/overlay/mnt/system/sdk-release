@@ -1,0 +1,5 @@
+SDK_VERSION=musl_riscv64
+board=milkv-duo-sd
+branch=develop
+commit=d182f335d
+time=2025-05-18-19:12:52
