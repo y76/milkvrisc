@@ -15,6 +15,7 @@ unzip the milkv-duo-sd-v1.1.4.img.zip and flash the image onto an SD card
 #### 1. Initial FSBL Setup
 If you haven't built the SDK before, run these commands to set up the environment and build the FSBL:
 ```bash
+./build.sh milkv-duo-sd
 export MILKV_BOARD=milkv-duo
 source milkv/boardconfig-milkv-duo.sh
 source build/milkvsetup.sh
@@ -59,7 +60,7 @@ riscv64-unknown-elf-gcc -nostdlib -fno-builtin -march=rv64gc -mabi=lp64f -mcmode
 riscv64-unknown-elf-objcopy -O binary bl33.elf bl33.bin
 ```
 
-#### 4. Create the FIP Image(or use ./sd.sh, but modify the script to your mount point)
+#### 4. Create the FIP Image(or use ./sd.sh, but modify the script to your mount point and location of your compiled fip.bin)
 ```bash
 cd fsbl/
 ./plat/cv180x/fiptool.py -v genfip \
