@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Source and destination paths
-SRC_PATH="/home/pavel/apps/milk/duo-buildroot-sdk/fsbl/build/cv1800b_milkv_duo_sd/fip.bin"
+SRC_PATH="./fsbl/build/cv1800b_milkv_duo_sd/fip.bin"
 DEST_PATH="/media/pavel/boot/"
 
 # Check if source file exists
