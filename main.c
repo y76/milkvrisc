@@ -29,7 +29,7 @@ void uart_puthex64(uint64_t val) {
         uart_putchar(hex[(val >> (i * 4)) & 0xF]);
     }
 }
-
+void m_mode_trap_handler(void);
 /* Helper to print PMPADDR registers */
 void read_pmpaddr(int index) {
     if (index < 0 || index > 15) return;
@@ -236,5 +236,89 @@ void c_entry(void) {
 
     test_pmpcfg2_writes();
 
+
+
+    uint64_t medeleg;
+asm volatile ("csrr %0, medeleg" : "=r"(medeleg));
+medeleg &= ~(1UL << 9);
+asm volatile ("csrw medeleg, %0" :: "r"(medeleg));
+
+// Set mtvec to trap handler for M-mode
+asm volatile("csrw mtvec, %0" :: "r"(m_mode_trap_handler));
+
+
+    uart_puts("Now dropping to S-mode...\r\n");
+
+    extern void s_mode_entry(void);
+    uint64_t mstatus;
+    asm volatile ("csrr %0, mstatus" : "=r"(mstatus));
+    mstatus = (mstatus & ~(3UL << 11)) | (1UL << 11); // MPP = S-mode
+    asm volatile ("csrw mstatus, %0" :: "r"(mstatus));
+    asm volatile ("csrw mepc, %0" :: "r"(s_mode_entry));
+    asm volatile ("mret");
+
     while(1) {}
+}
+
+//void s_trap_handler(void) {
+    //uart_puts("S-TRAP HANDLER!\r\n");
+   // uint64_t scause, sepc, stval;
+   // asm volatile("csrr %0, scause" : "=r"(scause));
+   // asm volatile("csrr %0, sepc" : "=r"(sepc));
+  //  asm volatile("csrr %0, stval" : "=r"(stval));
+  ////  uart_puts("scause: "); uart_puthex64(scause); uart_puts("\r\n");
+  //  uart_puts("sepc:   "); uart_puthex64(sepc); uart_puts("\r\n");
+  //  uart_puts("stval:  "); uart_puthex64(stval); uart_puts("\r\n");
+  //  while (1){}//{    uart_puts("S-TRAP HANDLER!\r\n");
+//}
+//}
+
+/*void s_mode_main(void) {
+    uart_puts("In S-mode!\r\n");
+
+    //asm volatile("csrw stvec, %0" :: "r"(s_trap_handler));
+
+    uart_puts("Trying to read OpenSBI (0x80000000)...\r\n");
+    volatile uint64_t *ptr = (volatile uint64_t *)0x80000000;
+    uint64_t val = *ptr; // should trap if PMP is set
+    uart_puts("Read succeeded!? Value: ");
+    uart_puthex64(val);
+    uart_puts("\r\n");
+
+    while (1);
+}*/
+
+void s_mode_main(void) {
+    uart_puts("Hello from S-mode!\r\n");
+
+    uart_puts("Calling back to M-mode with ecall...\r\n");
+    asm volatile("ecall");
+
+    // this should never be reached if trap handled correctly
+    uart_puts("Returned from ecall?!\r\n");
+
+    while (1);
+}
+
+__attribute__((aligned(4)))
+void m_mode_trap_handler(void) {
+    uart_puts("Back in M-mode via trap!\r\n");
+
+    uint64_t mcause, mepc, mtval;
+
+    // Read M-mode trap CSRs
+    asm volatile("csrr %0, 0x342" : "=r"(mcause)); // mcause
+    asm volatile("csrr %0, 0x341" : "=r"(mepc));   // mepc
+    asm volatile("csrr %0, 0x343" : "=r"(mtval));  // mtval
+
+    uart_puts("M-mode trap reason:\r\n");
+    uart_puts("mcause: "); print_hex(mcause); uart_puts("\r\n");
+    uart_puts("mepc:   "); print_hex(mepc);   uart_puts("\r\n");
+    uart_puts("mtval:  "); print_hex(mtval);  uart_puts("\r\n");
+
+    uart_puts("Hello again from M-mode!\r\n");
+
+    while (1) {
+        asm volatile("wfi");
+    }
 }

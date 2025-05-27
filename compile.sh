@@ -8,6 +8,7 @@ defconfig cv1800b_milkv_duo_sd
 # Compile the assembly file
 echo "Compiling assembly..."
 riscv64-unknown-elf-gcc -c -nostdlib -fno-builtin -march=rv64gc -mabi=lp64f -g -Wall start.S -o start.o
+riscv64-unknown-elf-gcc -c -nostdlib -fno-builtin -march=rv64gc -mabi=lp64f -g -Wall s_mode_entry.S -o s_mode_entry.o
 if [ $? -ne 0 ]; then
     echo "Error: GCC failed to compile start.S"
     exit 1
@@ -23,7 +24,8 @@ fi
 
 # Link everything together
 echo "Linking..."
-riscv64-unknown-elf-gcc -nostdlib -fno-builtin -march=rv64gc -mabi=lp64f -mcmodel=medany -g -Wall -T linker.ld start.o main.o -o bl33.elf
+riscv64-unknown-elf-gcc -nostdlib -fno-builtin -march=rv64gc -mabi=lp64f -mcmodel=medany -g -Wall \
+    -T linker.ld start.o main.o s_mode_entry.o -o bl33.elf
 if [ $? -ne 0 ]; then
     echo "Error: GCC failed to link"
     exit 1

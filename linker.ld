@@ -31,7 +31,10 @@ SECTIONS
         *(.sbss.*)
     }
 
-    /* Make sure everything is in range for RISC-V addressing modes */
+    /* Stack and end-of-image markers */
     . = ALIGN(8);
     _end = .;
+
+    . = ALIGN(16);
+    s_mode_stack_top = . + 0x1000; /* 4KB S-mode stack */
 }
