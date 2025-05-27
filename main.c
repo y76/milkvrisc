@@ -1,4 +1,7 @@
 #include <stdint.h>
+__attribute__((aligned(4096)))
+volatile uint8_t secret_data[4096] = { 0xAA };
+
 
 /* Function declared in assembly */
 void uart_putchar(char c);
@@ -236,7 +239,18 @@ void c_entry(void) {
 
     test_pmpcfg2_writes();
 
+    uart_puts("Locking secret_data region with PMP...\r\n");
 
+uintptr_t addr = (uintptr_t)&secret_data;
+uint64_t napot = (addr >> 2) | 0x1;  // 4KB NAPOT
+
+asm volatile("csrw 0x3B0, %0" :: "r"(napot));  // pmpaddr0
+uint64_t cfg = 0x18; // byte 0 = 0x18 → RWX=0, A=NAPOT
+asm volatile("csrw 0x3A0, %0" :: "r"(cfg));  // pmpcfg0
+
+uart_puts("Reading secret_data from M-mode: ");
+print_hex(*(uint64_t *)secret_data);
+uart_puts("\r\n");
 
     uint64_t medeleg;
 asm volatile ("csrr %0, medeleg" : "=r"(medeleg));
@@ -291,6 +305,12 @@ asm volatile("csrw mtvec, %0" :: "r"(m_mode_trap_handler));
 void s_mode_main(void) {
     uart_puts("Hello from S-mode!\r\n");
 
+volatile uint64_t val = *(volatile uint64_t *)secret_data;  // this should trap
+uart_puts("Read succeeded? Value: ");
+print_hex(val);
+uart_puts("\r\n");
+
+
     uart_puts("Calling back to M-mode with ecall...\r\n");
     asm volatile("ecall");
 
@@ -317,7 +337,7 @@ void m_mode_trap_handler(void) {
     uart_puts("mtval:  "); print_hex(mtval);  uart_puts("\r\n");
 
     uart_puts("Hello again from M-mode!\r\n");
-
+    //c_entry(); infinite
     while (1) {
         asm volatile("wfi");
     }
