@@ -1,4 +1,5 @@
 #include <stdint.h>
+
 __attribute__((aligned(4096)))
 volatile uint8_t secret_data[4096] = { 0xAA };
 
@@ -204,6 +205,7 @@ void c_entry(void) {
     // read_csr(7);
 
     uart_puts("\r\nDumping all PMPADDR registers:\r\n");
+
     for (int i = 0; i < 16; i++) {
         read_pmpaddr(i);
     }
@@ -241,24 +243,63 @@ void c_entry(void) {
 
     uart_puts("Locking secret_data region with PMP...\r\n");
 
-uintptr_t addr = (uintptr_t)&secret_data;
-uint64_t napot = (addr >> 2) | 0x1;  // 4KB NAPOT
+    
+    volatile uint8_t secret_local_data[8];
+    for (int i=0; i<8; i++) {
+        secret_local_data[i] = i & 0xFF;
+    }
+    uint64_t addr = (uintptr_t)&secret_data;
+    uint64_t addr2 = (uintptr_t)&secret_local_data;
+    // addr -= 0x200;
+    uint64_t napot = (addr >> 2) | ((0x1000UL-1) >> 3);  // 4KB NAPOT
+    uint64_t napot2 = (addr2 >> 2) | ((0x1000UL-1) >> 3);  // 4KB NAPOT
+    uint64_t code_napot = (0x80300000UL >> 2) | ((0x100000UL-1) >> 3); // 1MB DRAM region for M-mode (including the code)
+    uint64_t uart_napot = (0x04140000UL >> 2) | ((0x1000UL-1) >> 3);  // 4KB UART region
+    asm volatile("csrw pmpaddr3, %0" :: "r"(napot));  // pmpaddr3
+    asm volatile("csrw pmpaddr4, %0" :: "r"(napot2));  // pmpaddr4
+    asm volatile("csrw pmpaddr5, %0" :: "r"(code_napot));  // pmpaddr5 - code region
+    asm volatile("csrw pmpaddr6, %0" :: "r"(uart_napot)); // pmpaddr6 - UART
+    uint64_t cfg = 0x1F1818UL | (0x18UL << 24) | (0x18UL << 32) | (0x18UL << 40) | (0x18UL << 48);
+    asm volatile("csrw pmpcfg0, %0" :: "r"(cfg));  // pmpcfg0
 
-asm volatile("csrw 0x3B0, %0" :: "r"(napot));  // pmpaddr0
-uint64_t cfg = 0x18; // byte 0 = 0x18 → RWX=0, A=NAPOT
-asm volatile("csrw 0x3A0, %0" :: "r"(cfg));  // pmpcfg0
+    uart_puts("\r\n napot: ");
+    print_hex(napot);
+    uart_puts("\r\n napot2: ");
+    print_hex(napot2);
+    uart_puts("\r\n code_napot: ");
+    print_hex(code_napot);
+    uart_puts("\r\n uart_napot: ");
+    print_hex(uart_napot);
+    uart_puts("\r\n");
 
-uart_puts("Reading secret_data from M-mode: ");
-print_hex(*(uint64_t *)secret_data);
-uart_puts("\r\n");
+
+    read_csr(0);
+    uart_puts("\r\nDumping all PMPADDR registers:\r\n");
+    for (int i = 0; i < 16; i++) {
+        read_pmpaddr(i);
+    }
+    uart_puts("\r\n");
+
+
+    uart_puts("Reading secret_data from M-mode.\r\n Value: ");
+    print_hex(*(uint64_t *)secret_data);
+    uart_puts("\r\n Address: ");
+    print_hex((uint64_t *)secret_data);
+    uart_puts("\r\n");
+
+    uart_puts("Reading secret_local_data from M-mode.\r\n Value: ");
+    print_hex(*(uint64_t *)secret_local_data);
+    uart_puts("\r\n Address: ");
+    print_hex((uint64_t *)secret_local_data);
+    uart_puts("\r\n");
 
     uint64_t medeleg;
-asm volatile ("csrr %0, medeleg" : "=r"(medeleg));
-medeleg &= ~(1UL << 9);
-asm volatile ("csrw medeleg, %0" :: "r"(medeleg));
+    asm volatile ("csrr %0, medeleg" : "=r"(medeleg));
+    medeleg &= ~(1UL << 9);
+    asm volatile ("csrw medeleg, %0" :: "r"(medeleg));
 
-// Set mtvec to trap handler for M-mode
-asm volatile("csrw mtvec, %0" :: "r"(m_mode_trap_handler));
+    // Set mtvec to trap handler for M-mode
+    asm volatile("csrw mtvec, %0" :: "r"(m_mode_trap_handler));
 
 
     uart_puts("Now dropping to S-mode...\r\n");
@@ -305,10 +346,17 @@ asm volatile("csrw mtvec, %0" :: "r"(m_mode_trap_handler));
 void s_mode_main(void) {
     uart_puts("Hello from S-mode!\r\n");
 
-volatile uint64_t val = *(volatile uint64_t *)secret_data;  // this should trap
-uart_puts("Read succeeded? Value: ");
-print_hex(val);
-uart_puts("\r\n");
+    volatile uint64_t val = *(volatile uint64_t *)secret_data;  // this should trap
+    uart_puts("Read secret_data succeeded?\r\n Value: ");
+    print_hex(val);
+    uart_puts("\r\n");
+
+    val = *(uint64_t *)0x00000000803FFF48;
+    uart_puts("Read local_secret_data succeeded?\r\n Value: ");
+    print_hex(val);
+    uart_puts("\r\n Address: ");
+    print_hex(&val);
+    uart_puts("\r\n");
 
 
     uart_puts("Calling back to M-mode with ecall...\r\n");

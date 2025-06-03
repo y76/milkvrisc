@@ -35,6 +35,7 @@ SECTIONS
     . = ALIGN(8);
     _end = .;
 
+    . = 0x80500000;
     . = ALIGN(16);
     s_mode_stack_top = . + 0x1000; /* 4KB S-mode stack */
 }
