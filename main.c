@@ -1,24 +1,26 @@
 #include <stdint.h>
 
-__attribute__((aligned(4096)))
-volatile uint8_t secret_data[4096] = { 0xAA };
-
+__attribute__((aligned(4096))) volatile uint8_t secret_data[4096] = {0xAA};
 
 /* Function declared in assembly */
 void uart_putchar(char c);
 
 /* Function to print a string using UART */
-void uart_puts(const char *s) {
-    while (*s) {
+void uart_puts(const char *s)
+{
+    while (*s)
+    {
         uart_putchar(*s++);
     }
 }
 
 /* Helper to print in hex */
-void print_hex(unsigned long value) {
+void print_hex(unsigned long value)
+{
     char hex_chars[] = "0123456789ABCDEF";
     uart_puts("0x");
-    for (int i = 15; i >= 0; i--) {
+    for (int i = 15; i >= 0; i--)
+    {
         int nibble = (value >> (i * 4)) & 0xF;
         uart_putchar(hex_chars[nibble]);
     }
@@ -27,16 +29,20 @@ void print_hex(unsigned long value) {
 /* Global variable we should be able to access */
 volatile unsigned long test_var = 0xDEADBEEF;
 
-void uart_puthex64(uint64_t val) {
+void uart_puthex64(uint64_t val)
+{
     const char hex[] = "0123456789ABCDEF";
-    for (int i = 15; i >= 0; i--) {
+    for (int i = 15; i >= 0; i--)
+    {
         uart_putchar(hex[(val >> (i * 4)) & 0xF]);
     }
 }
 void m_mode_trap_handler(void);
 /* Helper to print PMPADDR registers */
-void read_pmpaddr(int index) {
-    if (index < 0 || index > 15) return;
+void read_pmpaddr(int index)
+{
+    if (index < 0 || index > 15)
+        return;
 
     uint64_t value;
     uart_puts("pmpaddr");
@@ -44,69 +50,104 @@ void read_pmpaddr(int index) {
     uart_putchar('0' + index % 10);
     uart_puts(": 0x");
 
-    switch (index) {
-        case 0:  asm volatile("csrr %0, 0x3B0" : "=r"(value)); break;
-        case 1:  asm volatile("csrr %0, 0x3B1" : "=r"(value)); break;
-        case 2:  asm volatile("csrr %0, 0x3B2" : "=r"(value)); break;
-        case 3:  asm volatile("csrr %0, 0x3B3" : "=r"(value)); break;
-        case 4:  asm volatile("csrr %0, 0x3B4" : "=r"(value)); break;
-        case 5:  asm volatile("csrr %0, 0x3B5" : "=r"(value)); break;
-        case 6:  asm volatile("csrr %0, 0x3B6" : "=r"(value)); break;
-        case 7:  asm volatile("csrr %0, 0x3B7" : "=r"(value)); break;
-        case 8:  asm volatile("csrr %0, 0x3B8" : "=r"(value)); break;
-        case 9:  asm volatile("csrr %0, 0x3B9" : "=r"(value)); break;
-        case 10: asm volatile("csrr %0, 0x3BA" : "=r"(value)); break;
-        case 11: asm volatile("csrr %0, 0x3BB" : "=r"(value)); break;
-        case 12: asm volatile("csrr %0, 0x3BC" : "=r"(value)); break;
-        case 13: asm volatile("csrr %0, 0x3BD" : "=r"(value)); break;
-        case 14: asm volatile("csrr %0, 0x3BE" : "=r"(value)); break;
-        case 15: asm volatile("csrr %0, 0x3BF" : "=r"(value)); break;
+    switch (index)
+    {
+    case 0:
+        asm volatile("csrr %0, 0x3B0" : "=r"(value));
+        break;
+    case 1:
+        asm volatile("csrr %0, 0x3B1" : "=r"(value));
+        break;
+    case 2:
+        asm volatile("csrr %0, 0x3B2" : "=r"(value));
+        break;
+    case 3:
+        asm volatile("csrr %0, 0x3B3" : "=r"(value));
+        break;
+    case 4:
+        asm volatile("csrr %0, 0x3B4" : "=r"(value));
+        break;
+    case 5:
+        asm volatile("csrr %0, 0x3B5" : "=r"(value));
+        break;
+    case 6:
+        asm volatile("csrr %0, 0x3B6" : "=r"(value));
+        break;
+    case 7:
+        asm volatile("csrr %0, 0x3B7" : "=r"(value));
+        break;
+    case 8:
+        asm volatile("csrr %0, 0x3B8" : "=r"(value));
+        break;
+    case 9:
+        asm volatile("csrr %0, 0x3B9" : "=r"(value));
+        break;
+    case 10:
+        asm volatile("csrr %0, 0x3BA" : "=r"(value));
+        break;
+    case 11:
+        asm volatile("csrr %0, 0x3BB" : "=r"(value));
+        break;
+    case 12:
+        asm volatile("csrr %0, 0x3BC" : "=r"(value));
+        break;
+    case 13:
+        asm volatile("csrr %0, 0x3BD" : "=r"(value));
+        break;
+    case 14:
+        asm volatile("csrr %0, 0x3BE" : "=r"(value));
+        break;
+    case 15:
+        asm volatile("csrr %0, 0x3BF" : "=r"(value));
+        break;
     }
 
     uart_puthex64(value);
     uart_puts("\r\n");
 }
 
-static inline void read_csr(uint32_t csr_id) {
+static inline void read_csr(uint32_t csr_id)
+{
     uart_puts("pmpcfg");
     uint64_t value;
-    switch (csr_id) {
-        case 0:
-            asm volatile("csrr %0, pmpcfg0" : "=r"(value));
-            uart_putchar('0');
-            break;
-        case 1:
-            asm volatile("csrr %0, pmpcfg1" : "=r"(value));
-            uart_putchar('1');
-            break;
-        case 2:
-            asm volatile("csrr %0, pmpcfg2" : "=r"(value));
-            uart_putchar('2');
-            break;
-        case 3:
-            asm volatile("csrr %0, pmpcfg3" : "=r"(value));
-            uart_putchar('3');
-            break;
-        case 4:
-            // asm volatile("csrr %0, pmpcfg4" : "=r"(value));
-            asm volatile("csrr %0, 0x3A4" : "=r"(value));
-            uart_putchar('4');
-            break;
-        case 5:
-            // asm volatile("csrr %0, pmpcfg5" : "=r"(value));
-            asm volatile("csrr %0, 0x3A5" : "=r"(value));
-            uart_putchar('5');
-            break;
-        case 6:
-            // asm volatile("csrr %0, pmpcfg6" : "=r"(value));
-            asm volatile("csrr %0, 0x3A6" : "=r"(value));
-            uart_putchar('6');
-            break;
-        case 7:
-            // asm volatile("csrr %0, pmpcfg7" : "=r"(value));
-            asm volatile("csrr %0, 0x3A7" : "=r"(value));
-            uart_putchar('7');
-            break;
+    switch (csr_id)
+    {
+    case 0:
+        asm volatile("csrr %0, pmpcfg0" : "=r"(value));
+        uart_putchar('0');
+        break;
+    case 1:
+        asm volatile("csrr %0, pmpcfg1" : "=r"(value));
+        uart_putchar('1');
+        break;
+    case 2:
+        asm volatile("csrr %0, pmpcfg2" : "=r"(value));
+        uart_putchar('2');
+        break;
+    case 3:
+        asm volatile("csrr %0, pmpcfg3" : "=r"(value));
+        uart_putchar('3');
+        break;
+    case 4:
+        // asm volatile("csrr %0, pmpcfg4" : "=r"(value));
+        asm volatile("csrr %0, 0x3A4" : "=r"(value));
+        uart_putchar('4');
+        break;
+    case 5:
+        // asm volatile("csrr %0, pmpcfg5" : "=r"(value));
+        asm volatile("csrr %0, 0x3A5" : "=r"(value));
+        uart_putchar('5');
+        break;
+    case 6:
+        // asm volatile("csrr %0, pmpcfg6" : "=r"(value));
+        asm volatile("csrr %0, 0x3A6" : "=r"(value));
+        uart_putchar('6');
+        break;
+    case 7:
+        // asm volatile("csrr %0, pmpcfg7" : "=r"(value));
+        asm volatile("csrr %0, 0x3A7" : "=r"(value));
+        uart_putchar('7');
+        break;
         // Add more if needed
     }
     uart_puts(": 0x");
@@ -114,14 +155,15 @@ static inline void read_csr(uint32_t csr_id) {
     uart_puts("\r\n");
 }
 
-void test_pmpcfg2_writes() {
+void test_pmpcfg2_writes()
+{
     uart_puts("\r\n--- PMP TEST: WRITING TO pmpcfg2 ---\r\n");
 
     // Use 8 distinct byte values so we can clearly see what sticks
     // Byte 0 = 0xA1, Byte 1 = 0xB2, ..., Byte 7 = 0xF8
     uint64_t test_val = 0xF8E7D6C5B4A39281UL;
 
-    asm volatile("csrw 0x3A2, %0" :: "r"(test_val));
+    asm volatile("csrw 0x3A2, %0" ::"r"(test_val));
 
     uart_puts("Wrote pmpcfg2 = 0x");
     uart_puthex64(test_val);
@@ -136,7 +178,8 @@ void test_pmpcfg2_writes() {
     uart_puts("\r\n");
 
     // Dump each byte
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 8; i++)
+    {
         uint8_t b = (readback >> (i * 8)) & 0xFF;
         uart_puts("Byte ");
         uart_putchar('0' + i);
@@ -149,9 +192,9 @@ void test_pmpcfg2_writes() {
     uart_puts("--- END TEST ---\r\n");
 }
 
-
 /* Main entry point */
-void c_entry(void) {
+void c_entry(void)
+{
     uart_puts("Hello C-code!\r\n");
 
     /* First read from our own data variable (should succeed) */
@@ -163,10 +206,11 @@ void c_entry(void) {
     uart_puts("\r\nReading first 16 bytes from 0x80200000 one byte at a time:\r\n");
 
     volatile unsigned char *code_ptr = (volatile unsigned char *)0x80200000;
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 16; i++)
+    {
         uart_puts("Byte ");
-        uart_putchar('0' + i/10);
-        uart_putchar('0' + i%10);
+        uart_putchar('0' + i / 10);
+        uart_putchar('0' + i % 10);
         uart_puts(": ");
 
         /* Read one byte at a time */
@@ -184,11 +228,13 @@ void c_entry(void) {
     uart_puts("Now attempting to read from protected OpenSBI memory...\r\n");
 
     /* Small delay to ensure the above gets printed */
-    for (volatile int i = 0; i < 1000000; i++) {}
+    for (volatile int i = 0; i < 1000000; i++)
+    {
+    }
 
     /* This access should trigger a trap due to PMP protection */
     volatile unsigned long *opensbi_ptr = (volatile unsigned long *)0x80000000;
-    unsigned long value = *opensbi_ptr;  /* This should reboot the system */
+    unsigned long value = *opensbi_ptr; /* This should reboot the system */
 
     /* If we get here, protection failed */
 
@@ -206,36 +252,38 @@ void c_entry(void) {
 
     uart_puts("\r\nDumping all PMPADDR registers:\r\n");
 
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 16; i++)
+    {
         read_pmpaddr(i);
     }
 
-        uart_puts("\r\nSetting new PMP entries...\r\n");
+    uart_puts("\r\nSetting new PMP entries...\r\n");
 
     // Set pmpaddr4 = 0xF0000000 ~ 0xF7FFFFFF (128MB NAPOT)
     // NAPOT encoded as: base_addr | ((size-1) >> 3)
     uint64_t addr4 = (0xF0000000 >> 2) | ((0x8000000 - 1) >> 3);
-    asm volatile("csrw 0x3B4, %0" :: "r"(addr4)); // pmpaddr4
+    asm volatile("csrw 0x3B4, %0" ::"r"(addr4)); // pmpaddr4
 
     // Set pmpaddr5 = 0xFFF73000 ~ 0xFFF74000 (4KB NAPOT)
     uint64_t addr5 = (0xFFF73000 >> 2) | ((0x1000 - 1) >> 3);
-    asm volatile("csrw 0x3B5, %0" :: "r"(addr5)); // pmpaddr5
+    asm volatile("csrw 0x3B5, %0" ::"r"(addr5)); // pmpaddr5
 
     // Configure PMP4 in pmpcfg0: index 4 → byte offset = 4
     // R/W, A=NAPOT => 0b011 = 0x18 (RW) + 0x18 << 32
     uint64_t new_pmpcfg0 = 0x0000001800000000UL | 0x00000000001F1818UL;
-    asm volatile("csrw pmpcfg0, %0" :: "r"(new_pmpcfg0));
+    asm volatile("csrw pmpcfg0, %0" ::"r"(new_pmpcfg0));
 
     // Configure PMP5 in pmpcfg2: index 5 → byte offset = 1
     uint64_t new_pmpcfg2 = 0x0000000000000018UL;
-    asm volatile("csrw 0x3A2, %0" :: "r"(new_pmpcfg2)); // pmpcfg2
+    asm volatile("csrw 0x3A2, %0" ::"r"(new_pmpcfg2)); // pmpcfg2
 
     uart_puts("Re-reading PMP configuration:\r\n");
     read_csr(0);
     read_csr(2);
 
     uart_puts("Re-dumping PMPADDR registers:\r\n");
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 16; i++)
+    {
         read_pmpaddr(i);
     }
 
@@ -243,43 +291,54 @@ void c_entry(void) {
 
     uart_puts("Locking secret_data region with PMP...\r\n");
 
-    
     volatile uint8_t secret_local_data[8];
-    for (int i=0; i<8; i++) {
+    for (int i = 0; i < 8; i++)
+    {
         secret_local_data[i] = i & 0xFF;
     }
+
     uint64_t addr = (uintptr_t)&secret_data;
     uint64_t addr2 = (uintptr_t)&secret_local_data;
-    // addr -= 0x200;
-    uint64_t napot = (addr >> 2) | ((0x1000UL-1) >> 3);  // 4KB NAPOT
-    uint64_t napot2 = (addr2 >> 2) | ((0x1000UL-1) >> 3);  // 4KB NAPOT
-    uint64_t code_napot = (0x80300000UL >> 2) | ((0x100000UL-1) >> 3); // 1MB DRAM region for M-mode (including the code)
-    uint64_t uart_napot = (0x04140000UL >> 2) | ((0x1000UL-1) >> 3);  // 4KB UART region
-    asm volatile("csrw pmpaddr3, %0" :: "r"(napot));  // pmpaddr3
-    asm volatile("csrw pmpaddr4, %0" :: "r"(napot2));  // pmpaddr4
-    asm volatile("csrw pmpaddr5, %0" :: "r"(code_napot));  // pmpaddr5 - code region
-    asm volatile("csrw pmpaddr6, %0" :: "r"(uart_napot)); // pmpaddr6 - UART
-    uint64_t cfg = 0x1F1818UL | (0x18UL << 24) | (0x18UL << 32) | (0x18UL << 40) | (0x18UL << 48);
-    asm volatile("csrw pmpcfg0, %0" :: "r"(cfg));  // pmpcfg0
 
-    uart_puts("\r\n napot: ");
-    print_hex(napot);
-    uart_puts("\r\n napot2: ");
-    print_hex(napot2);
+    // Calculate NAPOT encodings
+    uint64_t secret_napot = (addr >> 2) | ((0x1000UL - 1) >> 3);         // 4KB NAPOT for secret_data
+    uint64_t local_napot = (addr2 >> 2) | ((0x1000UL - 1) >> 3);         // 4KB NAPOT for local data
+    uint64_t code_napot = (0x80300000UL >> 2) | ((0x100000UL - 1) >> 3); // 1MB code region
+    uint64_t uart_napot = (0x04140000UL >> 2) | ((0x1000UL - 1) >> 3);   // 4KB UART
+
+    // CRITICAL: Put secret_data protection in PMP0 (highest priority)
+    asm volatile("csrw pmpaddr0, %0" ::"r"(secret_napot)); // PMP0: secret_data (DENY)
+    asm volatile("csrw pmpaddr1, %0" ::"r"(local_napot));  // PMP1: local data (ALLOW)
+    asm volatile("csrw pmpaddr2, %0" ::"r"(code_napot));   // PMP2: code region (ALLOW)
+    asm volatile("csrw pmpaddr3, %0" ::"r"(uart_napot));   // PMP3: UART (ALLOW)
+
+    // Configure pmpcfg0: PMP0=deny, PMP1/2/3=allow
+    uint64_t cfg = 0x18 |           // PMP0: NAPOT, no RWX (DENY secret_data)
+                   (0x18UL << 8) |  // PMP1: NAPOT, no RWX (DENY local data)
+                   (0x1FUL << 16) | // PMP2: NAPOT, RWX (ALLOW code)
+                   (0x1FUL << 24);  // PMP3: NAPOT, RWX (ALLOW UART)
+
+    asm volatile("csrw pmpcfg0, %0" ::"r"(cfg));
+
+    uart_puts("\r\n secret_napot: ");
+    print_hex(secret_napot);
+    uart_puts("\r\n local_napot: ");
+    print_hex(local_napot);
     uart_puts("\r\n code_napot: ");
     print_hex(code_napot);
     uart_puts("\r\n uart_napot: ");
     print_hex(uart_napot);
+    uart_puts("\r\n cfg: ");
+    print_hex(cfg);
     uart_puts("\r\n");
-
 
     read_csr(0);
     uart_puts("\r\nDumping all PMPADDR registers:\r\n");
-    for (int i = 0; i < 16; i++) {
+    for (int i = 0; i < 16; i++)
+    {
         read_pmpaddr(i);
     }
     uart_puts("\r\n");
-
 
     uart_puts("Reading secret_data from M-mode.\r\n Value: ");
     print_hex(*(uint64_t *)secret_data);
@@ -294,70 +353,43 @@ void c_entry(void) {
     uart_puts("\r\n");
 
     uint64_t medeleg;
-    asm volatile ("csrr %0, medeleg" : "=r"(medeleg));
+    asm volatile("csrr %0, medeleg" : "=r"(medeleg));
     medeleg &= ~(1UL << 9);
-    asm volatile ("csrw medeleg, %0" :: "r"(medeleg));
+    asm volatile("csrw medeleg, %0" ::"r"(medeleg));
 
     // Set mtvec to trap handler for M-mode
-    asm volatile("csrw mtvec, %0" :: "r"(m_mode_trap_handler));
-
+    asm volatile("csrw mtvec, %0" ::"r"(m_mode_trap_handler));
 
     uart_puts("Now dropping to S-mode...\r\n");
 
     extern void s_mode_entry(void);
     uint64_t mstatus;
-    asm volatile ("csrr %0, mstatus" : "=r"(mstatus));
+    asm volatile("csrr %0, mstatus" : "=r"(mstatus));
     mstatus = (mstatus & ~(3UL << 11)) | (1UL << 11); // MPP = S-mode
-    asm volatile ("csrw mstatus, %0" :: "r"(mstatus));
-    asm volatile ("csrw mepc, %0" :: "r"(s_mode_entry));
-    asm volatile ("mret");
+    asm volatile("csrw mstatus, %0" ::"r"(mstatus));
+    asm volatile("csrw mepc, %0" ::"r"(s_mode_entry));
+    asm volatile("mret");
 
-    while(1) {}
+    while (1)
+    {
+    }
 }
 
-//void s_trap_handler(void) {
-    //uart_puts("S-TRAP HANDLER!\r\n");
-   // uint64_t scause, sepc, stval;
-   // asm volatile("csrr %0, scause" : "=r"(scause));
-   // asm volatile("csrr %0, sepc" : "=r"(sepc));
-  //  asm volatile("csrr %0, stval" : "=r"(stval));
-  ////  uart_puts("scause: "); uart_puthex64(scause); uart_puts("\r\n");
-  //  uart_puts("sepc:   "); uart_puthex64(sepc); uart_puts("\r\n");
-  //  uart_puts("stval:  "); uart_puthex64(stval); uart_puts("\r\n");
-  //  while (1){}//{    uart_puts("S-TRAP HANDLER!\r\n");
-//}
-//}
-
-/*void s_mode_main(void) {
-    uart_puts("In S-mode!\r\n");
-
-    //asm volatile("csrw stvec, %0" :: "r"(s_trap_handler));
-
-    uart_puts("Trying to read OpenSBI (0x80000000)...\r\n");
-    volatile uint64_t *ptr = (volatile uint64_t *)0x80000000;
-    uint64_t val = *ptr; // should trap if PMP is set
-    uart_puts("Read succeeded!? Value: ");
-    uart_puthex64(val);
-    uart_puts("\r\n");
-
-    while (1);
-}*/
-
-void s_mode_main(void) {
+void s_mode_main(void)
+{
     uart_puts("Hello from S-mode!\r\n");
-
-    volatile uint64_t val = *(volatile uint64_t *)secret_data;  // this should trap
+    //uart_puts("Attempting to read secret_data from (should not work) S-mode!\r\n");
+    //volatile uint64_t val = *(volatile uint64_t *)secret_data; // this should trap
     uart_puts("Read secret_data succeeded?\r\n Value: ");
-    print_hex(val);
+    //print_hex(val);
     uart_puts("\r\n");
 
-    val = *(uint64_t *)0x00000000803FFF48;
+    volatile uint64_t val = *(uint64_t *)0x00000000803FFF48;
     uart_puts("Read local_secret_data succeeded?\r\n Value: ");
     print_hex(val);
     uart_puts("\r\n Address: ");
     print_hex(&val);
     uart_puts("\r\n");
-
 
     uart_puts("Calling back to M-mode with ecall...\r\n");
     asm volatile("ecall");
@@ -365,12 +397,13 @@ void s_mode_main(void) {
     // this should never be reached if trap handled correctly
     uart_puts("Returned from ecall?!\r\n");
 
-    while (1);
+    while (1)
+        ;
 }
 
-__attribute__((aligned(4)))
-void m_mode_trap_handler(void) {
-    uart_puts("Back in M-mode via trap!\r\n");
+__attribute__((aligned(4))) void m_mode_trap_handler(void)
+{
+    uart_puts("Back in M-mode via trap or ecall!\r\n");
 
     uint64_t mcause, mepc, mtval;
 
@@ -380,13 +413,20 @@ void m_mode_trap_handler(void) {
     asm volatile("csrr %0, 0x343" : "=r"(mtval));  // mtval
 
     uart_puts("M-mode trap reason:\r\n");
-    uart_puts("mcause: "); print_hex(mcause); uart_puts("\r\n");
-    uart_puts("mepc:   "); print_hex(mepc);   uart_puts("\r\n");
-    uart_puts("mtval:  "); print_hex(mtval);  uart_puts("\r\n");
+    uart_puts("mcause: ");
+    print_hex(mcause);
+    uart_puts("\r\n");
+    uart_puts("mepc:   ");
+    print_hex(mepc);
+    uart_puts("\r\n");
+    uart_puts("mtval:  ");
+    print_hex(mtval);
+    uart_puts("\r\n");
 
     uart_puts("Hello again from M-mode!\r\n");
-    //c_entry(); infinite
-    while (1) {
+    // c_entry(); infinite
+    while (1)
+    {
         asm volatile("wfi");
     }
 }
