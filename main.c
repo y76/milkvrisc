@@ -378,10 +378,10 @@ void c_entry(void)
 void s_mode_main(void)
 {
     uart_puts("Hello from S-mode!\r\n");
-    //uart_puts("Attempting to read secret_data from (should not work) S-mode!\r\n");
-    //volatile uint64_t val = *(volatile uint64_t *)secret_data; // this should trap
+    // uart_puts("Attempting to read secret_data from (should not work) S-mode!\r\n");
+    // volatile uint64_t val = *(volatile uint64_t *)secret_data; // this should trap
     uart_puts("Read secret_data succeeded?\r\n Value: ");
-    //print_hex(val);
+    // print_hex(val);
     uart_puts("\r\n");
 
     volatile uint64_t val = *(uint64_t *)0x00000000803FFF48;
@@ -424,6 +424,22 @@ __attribute__((aligned(4))) void m_mode_trap_handler(void)
     uart_puts("\r\n");
 
     uart_puts("Hello again from M-mode!\r\n");
+
+    // Print secret_data (global array)
+    uart_puts("M-mode reading secret_data: ");
+    print_hex(*(uint64_t *)secret_data);
+    uart_puts(" at address: ");
+    print_hex((uint64_t)secret_data);
+    uart_puts("\r\n");
+
+    // Print secret_local_data (from M-mode stack - hardcoded address)
+    uart_puts("M-mode reading secret_local_data: ");
+    volatile uint64_t *local_ptr = (volatile uint64_t *)0x00000000803FFF48;
+    print_hex(*local_ptr);
+    uart_puts(" at address: ");
+    print_hex((uint64_t)local_ptr);
+    uart_puts("\r\n");
+
     // c_entry(); infinite
     while (1)
     {
