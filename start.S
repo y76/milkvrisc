@@ -19,7 +19,7 @@ _start:
 
 real_start:
 	/* Set up stack pointer */
-	li sp, 0x80400000  /* Set stack pointer to some address */
+	li sp, 0x80800000  /* Set stack pointer to some address */
 
 	la s0, str
 1:

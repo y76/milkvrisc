@@ -10,6 +10,8 @@ SECTIONS
         *(.text.*)
     }
 
+    . = 0x80201000;
+
     .rodata : {
         *(.rodata)
         *(.rodata.*)
@@ -35,7 +37,7 @@ SECTIONS
     . = ALIGN(8);
     _end = .;
 
-    . = 0x80500000;
+    . = 0x81000000;
     . = ALIGN(16);
     s_mode_stack_top = . + 0x1000; /* 4KB S-mode stack */
 }

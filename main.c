@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-__attribute__((aligned(4096))) volatile uint8_t secret_data[4096] = {0xAA};
+#define SECRET_ADDR     (0x80400000)
 
 /* Function declared in assembly */
 void uart_putchar(char c);
@@ -297,32 +297,43 @@ void c_entry(void)
         secret_local_data[i] = i & 0xFF;
     }
 
-    uint64_t addr = (uintptr_t)&secret_data;
+    uint64_t addr = (uintptr_t)SECRET_ADDR;
     uint64_t addr2 = (uintptr_t)&secret_local_data;
+
+    addr2 -= 0x1000;
 
     // Calculate NAPOT encodings
     uint64_t secret_napot = (addr >> 2) | ((0x1000UL - 1) >> 3);         // 4KB NAPOT for secret_data
     uint64_t local_napot = (addr2 >> 2) | ((0x1000UL - 1) >> 3);         // 4KB NAPOT for local data
-    uint64_t code_napot = (0x80300000UL >> 2) | ((0x100000UL - 1) >> 3); // 1MB code region
+    uint64_t text_napot = (0x80200000 >> 2) | ((0x1000UL - 1) >> 3);     // 4KB NAPOT for the code
+    uint64_t code_napot = (0x80700000UL >> 2) | ((0x100000UL - 1) >> 3); // 1MB M-mode stack region
     uint64_t uart_napot = (0x04140000UL >> 2) | ((0x1000UL - 1) >> 3);   // 4KB UART
 
     // CRITICAL: Put secret_data protection in PMP0 (highest priority)
-    asm volatile("csrw pmpaddr0, %0" ::"r"(secret_napot)); // PMP0: secret_data (DENY)
-    asm volatile("csrw pmpaddr1, %0" ::"r"(local_napot));  // PMP1: local data (ALLOW)
-    asm volatile("csrw pmpaddr2, %0" ::"r"(code_napot));   // PMP2: code region (ALLOW)
-    asm volatile("csrw pmpaddr3, %0" ::"r"(uart_napot));   // PMP3: UART (ALLOW)
+    asm volatile("csrw pmpaddr0, %0" ::"r"(secret_napot));      // PMP0: secret_data (DENY)
+    // asm volatile("csrw pmpaddr1, %0" ::"r"(local_napot));       // PMP1: local data (ALLOW)
+    asm volatile("csrw pmpaddr1, %0" ::"r"(text_napot));       // PMP1: code region (DENY)
+    asm volatile("csrw pmpaddr2, %0" ::"r"(code_napot));        // PMP2: M-mode stack region (DENY)
+    asm volatile("csrw pmpaddr3, %0" ::"r"(uart_napot));        // PMP3: UART (ALLOW)
+    asm volatile("csrw pmpaddr4, %0" ::"r"(0x3FFFFFFFFFUL));    // PMP4: all regions (ALLOW)
 
     // Configure pmpcfg0: PMP0=deny, PMP1/2/3=allow
-    uint64_t cfg = 0x18 |           // PMP0: NAPOT, no RWX (DENY secret_data)
-                   (0x18UL << 8) |  // PMP1: NAPOT, no RWX (DENY local data)
-                   (0x1FUL << 16) | // PMP2: NAPOT, RWX (ALLOW code)
-                   (0x1FUL << 24);  // PMP3: NAPOT, RWX (ALLOW UART)
+    uint64_t cfg = (0x18UL <<  0) |     // PMP0: NAPOT, no RWX (DENY secret_data)
+                   (0x1CUL <<  8) |     // PMP1: NAPOT, X (DENY R/W in code region)
+                   (0x18UL << 16) |     // PMP2: NAPOT, RWX (DENY M-mode stack)
+                   (0x1FUL << 24) |     // PMP3: NAPOT, RWX (ALLOW UART)
+                   (0x1FUL << 32) ;     // PMP4: NAPOT, RWX (ALLOW all memory)
 
     asm volatile("csrw pmpcfg0, %0" ::"r"(cfg));
 
+    uart_puts("\r\n secret addr: ");
+    print_hex(addr);
     uart_puts("\r\n secret_napot: ");
     print_hex(secret_napot);
+    uart_puts("\r\n local_secret addr: ");
+    print_hex(addr2);
     uart_puts("\r\n local_napot: ");
+    print_hex(local_napot);
     print_hex(local_napot);
     uart_puts("\r\n code_napot: ");
     print_hex(code_napot);
@@ -341,9 +352,9 @@ void c_entry(void)
     uart_puts("\r\n");
 
     uart_puts("Reading secret_data from M-mode.\r\n Value: ");
-    print_hex(*(uint64_t *)secret_data);
+    print_hex(*(uint64_t *)SECRET_ADDR);
     uart_puts("\r\n Address: ");
-    print_hex((uint64_t *)secret_data);
+    print_hex((uint64_t *)SECRET_ADDR);
     uart_puts("\r\n");
 
     uart_puts("Reading secret_local_data from M-mode.\r\n Value: ");
@@ -351,6 +362,7 @@ void c_entry(void)
     uart_puts("\r\n Address: ");
     print_hex((uint64_t *)secret_local_data);
     uart_puts("\r\n");
+
 
     uint64_t medeleg;
     asm volatile("csrr %0, medeleg" : "=r"(medeleg));
@@ -361,6 +373,8 @@ void c_entry(void)
     asm volatile("csrw mtvec, %0" ::"r"(m_mode_trap_handler));
 
     uart_puts("Now dropping to S-mode...\r\n");
+
+    asm volatile("la sp, s_mode_stack_top");
 
     extern void s_mode_entry(void);
     uint64_t mstatus;
@@ -377,19 +391,22 @@ void c_entry(void)
 
 void s_mode_main(void)
 {
-    uart_puts("Hello from S-mode!\r\n");
+    uart_puts("\r\nHello from S-mode!\r\n");
     // uart_puts("Attempting to read secret_data from (should not work) S-mode!\r\n");
-    // volatile uint64_t val = *(volatile uint64_t *)secret_data; // this should trap
-    uart_puts("Read secret_data succeeded?\r\n Value: ");
-    // print_hex(val);
-    uart_puts("\r\n");
+    // volatile uint64_t addr = SECRET_ADDR; // this should trap
+    // uart_puts("Read secret_data succeeded?\r\n Value: ");
+    // print_hex(*(uint64_t *)addr);
+    // uart_puts("\r\n Address: ");
+    // print_hex(addr);
+    // uart_puts("\r\n");
 
-    volatile uint64_t val = *(uint64_t *)0x00000000803FFF48;
-    uart_puts("Read local_secret_data succeeded?\r\n Value: ");
-    print_hex(val);
-    uart_puts("\r\n Address: ");
-    print_hex(&val);
-    uart_puts("\r\n");
+    // uart_puts("Attempting to read M-mode stack from (should not work) S-mode!\r\n");
+    // volatile uint64_t addr = 0x00000000807FFF48;
+    // uart_puts("Read local_secret_data succeeded?\r\n Value: ");
+    // print_hex(*(uint64_t *)addr);
+    // uart_puts("\r\n Address: ");
+    // print_hex(addr);
+    // uart_puts("\r\n");
 
     uart_puts("Calling back to M-mode with ecall...\r\n");
     asm volatile("ecall");
@@ -427,14 +444,14 @@ __attribute__((aligned(4))) void m_mode_trap_handler(void)
 
     // Print secret_data (global array)
     uart_puts("M-mode reading secret_data: ");
-    print_hex(*(uint64_t *)secret_data);
+    print_hex(*(uint64_t *)SECRET_ADDR);
     uart_puts(" at address: ");
-    print_hex((uint64_t)secret_data);
+    print_hex((uint64_t)SECRET_ADDR);
     uart_puts("\r\n");
 
     // Print secret_local_data (from M-mode stack - hardcoded address)
     uart_puts("M-mode reading secret_local_data: ");
-    volatile uint64_t *local_ptr = (volatile uint64_t *)0x00000000803FFF48;
+    volatile uint64_t *local_ptr = (volatile uint64_t *)0x00000000807FFF40;
     print_hex(*local_ptr);
     uart_puts(" at address: ");
     print_hex((uint64_t)local_ptr);
