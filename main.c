@@ -1,3 +1,4 @@
+#if 0
 #include <stdint.h>
 
 #define SECRET_ADDR     (0x80400000)
@@ -460,6 +461,172 @@ __attribute__((aligned(4))) void m_mode_trap_handler(void)
     // c_entry(); infinite
     while (1)
     {
+        asm volatile("wfi");
+    }
+}
+
+#endif
+
+#include <stdint.h>
+
+#define SECRET_ADDR     (0x80400000)
+
+/* Function declared in assembly */
+void uart_putchar(char c);
+
+/* Function to print a string using UART */
+void uart_puts(const char *s)
+{
+    while (*s)
+    {
+        uart_putchar(*s++);
+    }
+}
+
+/* Helper to print in hex */
+void print_hex(unsigned long value)
+{
+    char hex_chars[] = "0123456789ABCDEF";
+    uart_puts("0x");
+    for (int i = 15; i >= 0; i--)
+    {
+        int nibble = (value >> (i * 4)) & 0xF;
+        uart_putchar(hex_chars[nibble]);
+    }
+}
+
+/* Global variable we should be able to access */
+volatile unsigned long test_var = 0xDEADBEEF;
+
+void uart_puthex64(uint64_t val)
+{
+    const char hex[] = "0123456789ABCDEF";
+    for (int i = 15; i >= 0; i--)
+    {
+        uart_putchar(hex[(val >> (i * 4)) & 0xF]);
+    }
+}
+
+#define MSTATUS_MPP_MASK   (3UL << 11)
+#define MSTATUS_MPP_S      (1UL << 11)
+#define MSTATUS_MPIE       (1UL << 7)
+#define MIE_MSIE           (1UL << 3)
+#define MIE_MTIE           (1UL << 7)
+#define MIE_MEIE           (1UL << 11)
+
+#define SIE_SEIE           (1UL << 9)
+
+#define CSR_WRITE(csr, val) asm volatile("csrw " #csr ", %0" :: "r"(val))
+#define CSR_READ(csr, val)  asm volatile("csrr %0, " #csr : "=r"(val))
+#define CSR_SET(csr, val)   asm volatile("csrs " #csr ", %0" :: "r"(val))
+#define CSR_CLEAR(csr, val) asm volatile("csrc " #csr ", %0" :: "r"(val))
+
+#define TIMER0_BASE         0x03020000UL
+#define TIMER_LOAD_COUNT    (*(volatile uint32_t *)(TIMER0_BASE + 0x00))
+#define TIMER_CONTROL_REG   (*(volatile uint32_t *)(TIMER0_BASE + 0x08))
+#define TIMER_EOI           (*(volatile uint32_t *)(TIMER0_BASE + 0x0C))
+
+#define PLIC_BASE           0x0C000000UL
+#define PLIC_PRIORITY7      (*(volatile uint32_t *)(PLIC_BASE + 4 * 7))
+#define PLIC_ENABLE_HART0   (*(volatile uint32_t *)(PLIC_BASE + 0x2000))
+#define PLIC_THRESHOLD      (*(volatile uint32_t *)(PLIC_BASE + 0x200000))
+#define PLIC_CLAIM          (*(volatile uint32_t *)(PLIC_BASE + 0x200004))
+
+extern void s_mode_main();
+
+void timer0_init() {
+    TIMER_LOAD_COUNT = 72000000;  // 3 seconds at 24MHz
+    TIMER_CONTROL_REG = 0x1;  // interrupt, enable
+}
+
+void plic_init() {
+    PLIC_PRIORITY7 = 1;
+    PLIC_ENABLE_HART0 |= (1 << 7);  // enable interrupt ID 7
+    PLIC_THRESHOLD = 0;
+}
+
+void delegate_interrupts() {
+    // Delegate external interrupts to S-mode
+    uint64_t val;
+    CSR_READ(medeleg, val);
+    val |= 0xFFFF;  // delegate all exceptions
+    CSR_WRITE(medeleg, val);
+
+    CSR_READ(mideleg, val);
+    val |= (1 << 9);  // delegate SEIE (Supervisor external interrupt)
+    CSR_WRITE(mideleg, val);
+}
+
+void enter_s_mode() {
+    uint64_t val;
+
+    // Set S-mode entry point
+    CSR_WRITE(stvec, (uint64_t)s_mode_main);
+
+    // Enable S-mode external interrupt
+    CSR_SET(sie, SIE_SEIE);
+
+    // Set MSTATUS.MPP = S-mode
+    CSR_READ(mstatus, val);
+    val &= ~MSTATUS_MPP_MASK;
+    val |= MSTATUS_MPP_S;
+    CSR_WRITE(mstatus, val);
+
+    // Set MEPC to s_mode_main
+    CSR_WRITE(mepc, (uint64_t)s_mode_main);
+
+    // Enable global M-mode interrupts
+    CSR_SET(mie, MIE_MEIE);
+    CSR_SET(mstatus, MSTATUS_MPIE);
+
+    asm volatile("mret");
+}
+
+void trap_handler() {
+    uart_puts("\r\ntrap is triggered!\r\n");
+    uint32_t irq = PLIC_CLAIM;
+    if (irq == 7) {
+        TIMER_EOI;
+        extern void timer0_isr();  // ISR defined in S-mode
+        timer0_isr();
+    }
+    PLIC_CLAIM = irq;  // complete interrupt
+}
+
+/* Main entry point */
+void c_entry(void)
+{
+    uart_puts("Hello C-code!\r\n");
+
+    /* First read from our own data variable (should succeed) */
+    uart_puts("Reading from our own data variable: ");
+    print_hex(test_var);
+    uart_puts("\r\n");
+
+    CSR_WRITE(mtvec, (uint64_t)trap_handler);  // set trap vector
+    timer0_init();
+    plic_init();
+    delegate_interrupts();
+    enter_s_mode();
+
+
+    while (1)
+    {
+    }
+}
+
+volatile uint32_t timer_count = 0;
+
+void timer0_isr() {
+    timer_count++;
+    uart_puts("\r\nTimer0 fired: ");
+    print_hex(timer_count);
+    uart_puts(" times\r\n");
+}
+
+void s_mode_main() {
+    uart_puts("\r\nS mode!\r\n");
+    while (1) {
         asm volatile("wfi");
     }
 }
